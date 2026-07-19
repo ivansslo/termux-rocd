@@ -1,7 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ═════════════════════════════════════════════════════════════════════════════
 #  termux-rocd — Bulletproof Termux Container Provisioner via proot-distro
-#  (Host: Bash | Container root@localhost: Auto Zsh Detection Wrapper)
 # ═════════════════════════════════════════════════════════════════════════════
 
 set -e
@@ -38,6 +37,9 @@ printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > "$RESOLV_CONF" 2>/dev/null |
   printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > "$ETC_DIR/resolv.conf"
 }
 
+# Clean any broken default_shell override in proot-distro
+rm -f "${PREFIX:-/data/data/com.termux/files/usr}/etc/proot-distro/ubuntu.override.sh" 2>/dev/null || true
+
 # 1. Reset & Purge Termux Host Caches
 echo -e "${YLW}🧹 Step 1: Cleaning Termux host caches...${RST}"
 python3 -m pip cache purge 2>/dev/null || true
@@ -67,7 +69,7 @@ fi
 
 # 5. Provision Full Stack Dev Tools & Zsh INSIDE container (root@localhost)
 echo -e "${YLW}📦 Step 5: Pre-installing Zsh, Termux-Zsh theme, sudo, Node.js, npm, git & gh in container...${RST}"
-proot-distro login ubuntu -- /bin/bash -c "
+proot-distro login ubuntu --shell /bin/bash -- /bin/bash -c "
   set -e
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y
@@ -89,9 +91,6 @@ proot-distro login ubuntu -- /bin/bash -c "
     apt-get update -y || true
     apt-get install -y gh || true
   fi
-
-  # Set default shell in container to Zsh
-  chsh -s /usr/bin/zsh root 2>/dev/null || true
 
   # Install Termux-Zsh dotfiles theme inside container /root
   cd /root
@@ -126,6 +125,9 @@ if [ ! -f "$RESOLV" ] || [ ! -s "$RESOLV" ]; then
   printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > "$RESOLV" 2>/dev/null || true
 fi
 
+# Clear broken default_shell override file on host
+rm -f "${PREFIX:-/data/data/com.termux/files/usr}/etc/proot-distro/ubuntu.override.sh" 2>/dev/null || true
+
 if [ "$1" = "reset" ]; then
   echo "🧹 Resetting rocd Ubuntu container..."
   proot-distro remove ubuntu 2>/dev/null || true
@@ -135,10 +137,10 @@ if [ "$1" = "reset" ]; then
 fi
 
 if [ $# -gt 0 ]; then
-  exec proot-distro login ubuntu -- "$@"
+  exec proot-distro login ubuntu --shell /bin/bash -- "$@"
 else
   echo "🚀 Entering rocd Ubuntu Container (root@localhost)..."
-  exec proot-distro login ubuntu -- /bin/bash -c "[ -x /usr/bin/zsh ] && exec /usr/bin/zsh -l || exec /bin/bash -l"
+  exec proot-distro login ubuntu --shell /bin/bash -- /bin/bash -c "[ -x /usr/bin/zsh ] && exec /usr/bin/zsh -l || [ -x /bin/zsh ] && exec /bin/zsh -l || exec /bin/bash -l"
 fi
 EOF
 
