@@ -5,6 +5,10 @@
 
 set -e
 
+export DEBIAN_FRONTEND=noninteractive
+export APT_LISTCHANGES_FRONTEND=none
+export DPKG_OPTIONS="--force-confold --force-confdef"
+
 RED='\033[0;31m'
 GRN='\033[0;32m'
 YLW='\033[1;33m'
@@ -16,6 +20,9 @@ echo -e "${CYN}=====================================================${RST}"
 echo -e "${BOLD}${GRN}     ⚡ Termux Reset, Zsh & Full udocker Provisioner   ${RST}"
 echo -e "${CYN}=====================================================${RST}"
 echo ""
+
+# Fix any interrupted dpkg locks/prompts on Termux host
+dpkg --configure -a --force-confold --force-confdef 2>/dev/null || true
 
 # 0. Ensure valid resolv.conf exists on Termux host (handling broken symlinks)
 RESOLV_CONF="${PREFIX:-/data/data/com.termux/files/usr}/etc/resolv.conf"
@@ -36,9 +43,10 @@ rm -rf ~/.cache ~/.tmp /data/data/com.termux/files/usr/tmp/* 2>/dev/null || true
 echo -e "${GRN}✅ Caches cleared.${RST}\n"
 
 # 2. Update Termux System Packages & Install Base Tools + Zsh
-echo -e "${YLW}📦 Step 2: Updating host packages & installing Zsh + container tools...${RST}"
-pkg update -y && pkg upgrade -y
-pkg install -y zsh wget python clang make pkg-config libffi openssl curl git jq proot tar unzip openssh
+echo -e "${YLW}📦 Step 2: Updating host packages non-interactively & installing Zsh + tools...${RST}"
+pkg update -y -o Dpkg::Options::="--force-confold" -o Dpkg::Options::="--force-confdef" 2>/dev/null || apt-get update -y
+pkg upgrade -y -o Dpkg::Options::="--force-confold" -o Dpkg::Options::="--force-confdef" 2>/dev/null || true
+pkg install -y -o Dpkg::Options::="--force-confold" -o Dpkg::Options::="--force-confdef" zsh wget python clang make pkg-config libffi openssl curl git jq proot tar unzip openssh
 
 # 3. Download and Apply Custom Zsh Environment on Host Termux
 echo -e "${YLW}🎨 Step 3: Installing Termux-Zsh custom shell dotfiles on host...${RST}"
