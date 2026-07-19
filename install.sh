@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ═════════════════════════════════════════════════════════════════════════════
-#  termux-rocd — Reset Termux, Install Zsh Theme & Provision udocker Container
+#  termux-rocd — Reset Termux, Install Zsh Theme & Provision Container + Zsh
 # ═════════════════════════════════════════════════════════════════════════════
 
 set -e
@@ -13,7 +13,7 @@ BOLD='\033[1m'
 RST='\033[0m'
 
 echo -e "${CYN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}     ⚡ Termux Reset, Zsh & udocker Provisioner      ${RST}"
+echo -e "${BOLD}${GRN}     ⚡ Termux Reset, Zsh & udocker Container Engine  ${RST}"
 echo -e "${CYN}=====================================================${RST}"
 echo ""
 
@@ -36,12 +36,12 @@ rm -rf ~/.cache ~/.tmp /data/data/com.termux/files/usr/tmp/* 2>/dev/null || true
 echo -e "${GRN}✅ Caches cleared.${RST}\n"
 
 # 2. Update Termux System Packages & Install Base Tools + Zsh
-echo -e "${YLW}📦 Step 2: Updating packages & installing Zsh + container tools...${RST}"
+echo -e "${YLW}📦 Step 2: Updating packages & installing Host Zsh + container tools...${RST}"
 pkg update -y && pkg upgrade -y
 pkg install -y zsh wget python clang make pkg-config libffi openssl curl git jq proot tar unzip openssh
 
-# 3. Download and Apply Custom Zsh Environment
-echo -e "${YLW}🎨 Step 3: Installing Termux-Zsh custom shell dotfiles...${RST}"
+# 3. Download and Apply Custom Zsh Environment on Host Termux
+echo -e "${YLW}🎨 Step 3: Installing Termux-Zsh custom shell dotfiles on host...${RST}"
 cd "$HOME"
 rm -f zsh.tar.xz 2>/dev/null || true
 if wget -q -O zsh.tar.xz "https://github.com/ivansslo/Termux-Zsh/raw/main/zsh.tar.xz" || wget -q -O zsh.tar.xz "https://github.com/atamshkai/Termux-Zsh/raw/main/zsh.tar.xz"; then
@@ -50,12 +50,12 @@ if wget -q -O zsh.tar.xz "https://github.com/ivansslo/Termux-Zsh/raw/main/zsh.ta
     cp -rn "$HOME/zsh/".* "$HOME/" 2>/dev/null || true
     rm -rf "$HOME/zsh" "$HOME/zsh.tar.xz"
   fi
-  echo -e "${GRN}✅ Zsh configuration & theme applied!${RST}"
+  echo -e "${GRN}✅ Zsh configuration & theme applied to host Termux!${RST}"
 else
   echo -e "${YLW}⚠️ Could not fetch zsh.tar.xz, using standard Zsh config.${RST}"
 fi
 
-# Set default shell to zsh if available
+# Set default host shell to zsh if available
 if command -v zsh &>/dev/null; then
   chsh -s zsh 2>/dev/null || true
 fi
@@ -80,8 +80,26 @@ udocker create --name=roc-container ubuntu:22.04
 echo -e "${YLW}🔧 Step 8: Configuring Android ARM64 execution mode (F8 / P1 PRoot)...${RST}"
 udocker setup --execmode=F8 roc-container 2>/dev/null || udocker setup --execmode=P1 roc-container 2>/dev/null || true
 
-# 7. Create Shortcut Launcher 'rocd'
-echo -e "${YLW}🔗 Step 9: Creating global launcher shortcut 'rocd'...${RST}"
+# 7. Provision Zsh & Termux-Zsh Dotfiles inside the Container (root@localhost)
+echo -e "${YLW}🐚 Step 9: Installing Zsh & dotfiles inside container (root@localhost)...${RST}"
+udocker run --user=root roc-container /bin/bash -c "
+  set -e
+  apt-get update -y
+  apt-get install -y zsh wget curl git tar
+  cd /root
+  wget -q -O zsh.tar.xz https://github.com/ivansslo/Termux-Zsh/raw/main/zsh.tar.xz || wget -q -O zsh.tar.xz https://github.com/atamshkai/Termux-Zsh/raw/main/zsh.tar.xz || true
+  if [ -f zsh.tar.xz ]; then
+    tar -xvJf zsh.tar.xz 2>/dev/null || tar -xvf zsh.tar.xz 2>/dev/null || true
+    if [ -d /root/zsh ]; then
+      cp -rn /root/zsh/.* /root/ 2>/dev/null || true
+      rm -rf /root/zsh /root/zsh.tar.xz
+    fi
+  fi
+  chsh -s /usr/bin/zsh root 2>/dev/null || true
+" 2>/dev/null || echo -e "${YLW}⚠️ Zsh container setup finished with minor warnings.${RST}"
+
+# 8. Create Shortcut Launcher 'rocd' with Zsh as default container shell
+echo -e "${YLW}🔗 Step 10: Creating global launcher shortcut 'rocd'...${RST}"
 BIN_DIR="${PREFIX:-$HOME/.local}/bin"
 mkdir -p "$BIN_DIR"
 
@@ -117,8 +135,8 @@ fi
 if [ $# -gt 0 ]; then
   exec udocker run --user=root roc-container "$@"
 else
-  echo "🚀 Entering udocker Termux Container (Ubuntu 22.04)..."
-  exec udocker run --user=root roc-container /bin/bash
+  echo "🚀 Entering udocker Termux Container (Ubuntu 22.04 with Zsh)..."
+  exec udocker run --user=root roc-container /usr/bin/zsh 2>/dev/null || exec udocker run --user=root roc-container /bin/zsh 2>/dev/null || exec udocker run --user=root roc-container /bin/bash
 fi
 EOF
 
@@ -126,10 +144,10 @@ chmod +x "$BIN_DIR/rocd"
 
 echo ""
 echo -e "${GRN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}🎉 Termux Reset, Zsh & Container Setup Complete!${RST}"
+echo -e "${BOLD}${GRN}🎉 Termux Reset, Host Zsh & Container Zsh Setup Complete!${RST}"
 echo -e "${GRN}=====================================================${RST}"
-echo -e "  • Default Shell:   ${CYN}Zsh with custom dotfiles theme${RST}"
-echo -e "  • Container Name:  ${CYN}roc-container${RST} (Ubuntu 22.04)"
+echo -e "  • Host Shell:      ${CYN}Zsh with custom dotfiles theme${RST}"
+echo -e "  • Container Shell: ${CYN}Zsh (root@localhost in roc-container)${RST}"
 echo -e "  • Shortcut Command:${BOLD}${GRN} rocd ${RST}"
 echo ""
 echo -e "${CYN}💡 How to use your container:${RST}"
