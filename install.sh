@@ -37,7 +37,7 @@ printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > "$RESOLV_CONF" 2>/dev/null |
   printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > "$ETC_DIR/resolv.conf"
 }
 
-# Clean any broken default_shell override in proot-distro
+# Clear any broken default_shell override in proot-distro
 rm -f "${PREFIX:-/data/data/com.termux/files/usr}/etc/proot-distro/ubuntu.override.sh" 2>/dev/null || true
 
 # 1. Reset & Purge Termux Host Caches
@@ -75,8 +75,8 @@ proot-distro login ubuntu --shell /bin/bash -- /bin/bash -c "
   apt-get update -y
   apt-get install -y zsh sudo curl wget git jq unzip tar nano vim net-tools lsof procps ca-certificates gnupg build-essential python3 python3-pip python3-venv libffi-dev libssl-dev
 
-  # Set default shell in /etc/passwd directly to bypass PAM authentication failures
-  sed -i 's|/root:/bin/bash|/root:/usr/bin/zsh|g' /etc/passwd 2>/dev/null || true
+  # Keep /etc/passwd set to /bin/bash to satisfy proot-distro's host check
+  sed -i 's|/root:/usr/bin/zsh|/root:/bin/bash|g' /etc/passwd 2>/dev/null || true
 
   # Install Node.js v20 LTS & upgrade npm to latest
   if ! command -v node >/dev/null 2>&1; then
@@ -143,7 +143,7 @@ if [ $# -gt 0 ]; then
   exec proot-distro login ubuntu --shell /bin/bash -- "$@"
 else
   echo "🚀 Entering rocd Ubuntu Container (root@localhost)..."
-  exec proot-distro login ubuntu --shell /bin/bash -- /bin/bash -c "[ -x /usr/bin/zsh ] && exec /usr/bin/zsh -l || [ -x /bin/zsh ] && exec /bin/zsh -l || exec /bin/bash -l"
+  exec proot-distro login ubuntu --shell /bin/bash -- /bin/bash -c "[ -x /usr/bin/zsh ] && exec /usr/bin/zsh -l || exec /bin/bash -l"
 fi
 EOF
 
@@ -169,6 +169,6 @@ echo -e "${GRN}=====================================================${RST}"
 echo -e "${BOLD}${GRN}🎉 Crash-Free rocd Container Setup Complete!${RST}"
 echo -e "${GRN}=====================================================${RST}"
 echo -e "  • Host Shell:      ${CYN}Bash (Clean & Lightweight Host)${RST}"
-echo -e "  • Container Shell: ${CYN}Zsh (Direct /etc/passwd binding, zero PAM error)${RST}"
+echo -e "  • Container Shell: ${CYN}Zsh (Smooth Auto-Detect via /bin/bash bootloader)${RST}"
 echo -e "  • Shortcut Command: ${BOLD}${GRN} rocd ${RST}"
 echo ""
