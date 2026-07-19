@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ═════════════════════════════════════════════════════════════════════════════
-#  termux-rocd — Termux Reset & Auto-Launch rocd Container via ~/.bashrc
+#  termux-rocd — Termux Reset & Auto-Healing udocker Container Launcher
 # ═════════════════════════════════════════════════════════════════════════════
 
 set -e
@@ -19,7 +19,7 @@ BOLD='\033[1m'
 RST='\033[0m'
 
 echo -e "${CYN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}     ⚡ Termux Reset & Auto-Launch rocd Provisioner  ${RST}"
+echo -e "${BOLD}${GRN}     ⚡ Termux Reset & Auto-Healing rocd Provisioner  ${RST}"
 echo -e "${CYN}=====================================================${RST}"
 echo ""
 
@@ -45,7 +45,7 @@ rm -rf ~/.cache ~/.tmp /data/data/com.termux/files/usr/tmp/* 2>/dev/null || true
 echo -e "${GRN}✅ Caches cleared.${RST}\n"
 
 # 2. Revert Host Shell to Bash (Remove Zsh on Host)
-echo -e "${YLW}🐚 Step 2: Setting default host shell to Bash (removing Zsh on host)...${RST}"
+echo -e "${YLW}🐚 Step 2: Setting default host shell to Bash...${RST}"
 if command -v chsh &>/dev/null; then
   chsh -s bash 2>/dev/null || true
 fi
@@ -79,43 +79,17 @@ udocker create --name=roc-container debian:bookworm 2>/dev/null || \
 udocker create --name=roc-container arm64v8/debian:bookworm
 
 # 6. Configure PRoot Execution Mode for Android ARM64
-echo -e "${YLW}🔧 Step 8: Configuring Android ARM64 execution mode (P1 PRoot)...${RST}"
-udocker setup --execmode=P1 roc-container 2>/dev/null || udocker setup --execmode=R1 roc-container 2>/dev/null || udocker setup --execmode=F8 roc-container 2>/dev/null || true
+echo -e "${YLW}🔧 Step 8: Configuring Android ARM64 execution mode (F8 PRoot)...${RST}"
+udocker setup --execmode=F8 roc-container 2>/dev/null || udocker setup --execmode=P1 roc-container 2>/dev/null || true
 
-# 7. Provision Full Stack Dev Tools in root@localhost container
-echo -e "${YLW}📦 Step 9: Installing sudo, Node.js LTS, npm, git, gh CLI, curl & dev tools in root@localhost...${RST}"
-udocker run --user=root roc-container /bin/bash -c "
-  set -e
-  export DEBIAN_FRONTEND=noninteractive
-  apt-get update -y
-  apt-get install -y sudo curl wget git jq unzip tar nano vim net-tools lsof procps ca-certificates gnupg build-essential python3 python3-pip python3-venv libffi-dev libssl-dev
-
-  # Install Node.js v20 LTS & upgrade npm to latest
-  if ! command -v node >/dev/null 2>&1; then
-    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
-    apt-get install -y nodejs
-  fi
-  npm install -g npm@latest tsx vite tsup 2>/dev/null || true
-
-  # Install GitHub CLI (gh)
-  if ! command -v gh >/dev/null 2>&1; then
-    mkdir -p /etc/apt/keyrings
-    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/etc/apt/keyrings/githubcli-archive-keyring.gpg 2>/dev/null || true
-    chmod 644 /etc/apt/keyrings/githubcli-archive-keyring.gpg 2>/dev/null || true
-    echo 'deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' | tee /etc/apt/sources.list.d/github-cli.list > /dev/null || true
-    apt-get update -y || true
-    apt-get install -y gh || true
-  fi
-" 2>/dev/null || echo -e "${YLW}⚠️ Container tool provisioning finished with minor notices.${RST}"
-
-# 8. Create Global Shortcut Launcher 'rocd'
-echo -e "${YLW}🔗 Step 10: Creating global launcher shortcut 'rocd'...${RST}"
+# 7. Create Auto-Healing Global Launcher 'rocd'
+echo -e "${YLW}🔗 Step 9: Creating global launcher shortcut 'rocd'...${RST}"
 BIN_DIR="${PREFIX:-$HOME/.local}/bin"
 mkdir -p "$BIN_DIR"
 
 cat << 'EOF' > "$BIN_DIR/rocd"
 #!/data/data/com.termux/files/usr/bin/bash
-# Shortcut launcher for udocker roc-container (root@localhost)
+# Shortcut launcher for udocker roc-container with auto-repair and failover
 
 export PROOT_NO_SECCOMP=1
 export PROOT_FORCE_READLINK=1
@@ -133,50 +107,75 @@ if [ "$1" = "reset" ]; then
   udocker rm -f roc-container 2>/dev/null || true
   udocker pull --platform=linux/arm64 ubuntu:22.04 2>/dev/null || udocker pull arm64v8/ubuntu:22.04 2>/dev/null || true
   udocker create --name=roc-container ubuntu:22.04 2>/dev/null || udocker create --name=roc-container arm64v8/ubuntu:22.04 2>/dev/null || udocker create --name=roc-container debian:bookworm
-  udocker setup --execmode=P1 roc-container 2>/dev/null || udocker setup --execmode=R1 roc-container 2>/dev/null || udocker setup --execmode=F8 roc-container 2>/dev/null || true
+  udocker setup --execmode=F8 roc-container 2>/dev/null || udocker setup --execmode=P1 roc-container 2>/dev/null || true
   echo "✅ Container roc-container reset to fresh state."
   exit 0
 fi
 
 if [ "$1" = "mode" ]; then
-  mode="${2:-P1}"
+  mode="${2:-F8}"
   echo "⚙️ Setting execution mode to $mode..."
   udocker setup --execmode="$mode" roc-container
   echo "✅ Mode updated to $mode."
   exit 0
 fi
 
+# Multi-mode Execution Function with Auto-healing
+run_container() {
+  local target_cmd="${1:-/bin/bash}"
+  shift || true
+  
+  if udocker run --user=root -w /root roc-container "$target_cmd" "$@"; then
+    return 0
+  fi
+  
+  echo "⚠️ Mode P1/Default exited with error. Auto-repairing mode to F8 (Fakechroot)..."
+  udocker setup --execmode=F8 roc-container 2>/dev/null || true
+  if udocker run --user=root -w /root roc-container "$target_cmd" "$@"; then
+    return 0
+  fi
+
+  echo "⚠️ Mode F8 failed. Trying mode R1..."
+  udocker setup --execmode=R1 roc-container 2>/dev/null || true
+  if udocker run --user=root -w /root roc-container "$target_cmd" "$@"; then
+    return 0
+  fi
+
+  echo "⚠️ Trying fallback mode P2..."
+  udocker setup --execmode=P2 roc-container 2>/dev/null || true
+  udocker run --user=root -w /root roc-container "$target_cmd" "$@"
+}
+
 if [ $# -gt 0 ]; then
-  exec udocker run --user=root -w /root roc-container "$@"
+  run_container "$@"
 else
   echo "🚀 Entering udocker Termux Container (root@localhost Ubuntu 22.04)..."
-  exec udocker run --user=root -w /root roc-container /bin/bash -l
+  run_container /bin/bash
 fi
 EOF
 
 chmod +x "$BIN_DIR/rocd"
 
-# 9. Configure Termux ~/.bashrc to Auto-Launch rocd container on startup
-echo -e "${YLW}⚙️ Step 11: Configuring Termux ~/.bashrc to auto-start rocd as root local...${RST}"
+# 8. Configure Termux ~/.bashrc Safely (Without force closing on exit)
+echo -e "${YLW}⚙️ Step 10: Configuring Termux ~/.bashrc to auto-start rocd safely...${RST}"
 touch "$HOME/.bashrc"
 sed -i '/zsh/d' "$HOME/.bashrc" 2>/dev/null || true
+sed -i '/rocd/d' "$HOME/.bashrc" 2>/dev/null || true
 
-if ! grep -q "rocd" "$HOME/.bashrc" 2>/dev/null; then
-  cat << 'EOF' >> "$HOME/.bashrc"
+cat << 'EOF' >> "$HOME/.bashrc"
 
-# Automatically launch rocd container on Termux startup
+# Safe auto-launch rocd container on Termux startup
 if [ -t 0 ] && [ -x "$PREFIX/bin/rocd" ] && [ -z "$ROCD_ACTIVE" ]; then
   export ROCD_ACTIVE=1
-  exec rocd
+  rocd || echo "⚠️ Container exited. Retaining Termux host session."
 fi
 EOF
-fi
 
 echo ""
 echo -e "${GRN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}🎉 Auto-Launch rocd in Termux ~/.bashrc Configured!${RST}"
+echo -e "${BOLD}${GRN}🎉 Auto-Healing rocd Container Setup Complete!${RST}"
 echo -e "${GRN}=====================================================${RST}"
-echo -e "  • Host Shell:      ${CYN}Bash (Zsh removed from host)${RST}"
-echo -e "  • Auto-Start:     ${CYN}rocd added to ~/.bashrc (launches root@localhost automatically)${RST}"
-echo -e "  • Container Stack: ${CYN}Ubuntu 22.04 with sudo, Node.js v20, npm, git, gh, curl, wget${RST}"
+echo -e "  • Safe Auto-Start:  ${CYN}rocd starts automatically without process exit lock${RST}"
+echo -e "  • Auto-Repair Modes:${CYN}Automatic failover across F8, P1, R1, P2 execution modes${RST}"
+echo -e "  • Shortcut Command: ${BOLD}${GRN} rocd ${RST}"
 echo ""
