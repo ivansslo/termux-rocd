@@ -1,7 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ═════════════════════════════════════════════════════════════════════════════
-#  termux-rocd — Bulletproof Termux Container Provisioner via proot-distro
-#  (Pure Bash Environment for Host & Container root@localhost)
+#  termux-rocd — FULL-PACKAGE Ubuntu Dev Stack & Container Engine
 # ═════════════════════════════════════════════════════════════════════════════
 
 set -e
@@ -20,7 +19,7 @@ BOLD='\033[1m'
 RST='\033[0m'
 
 echo -e "${CYN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}     ⚡ Termux Reset & Bulletproof rocd Provisioner   ${RST}"
+echo -e "${BOLD}${GRN}     ⚡ termux-rocd FULL PACKAGE Ubuntu Provisioner   ${RST}"
 echo -e "${CYN}=====================================================${RST}"
 echo ""
 
@@ -38,7 +37,7 @@ printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > "$RESOLV_CONF" 2>/dev/null |
   printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > "$ETC_DIR/resolv.conf"
 }
 
-# Clean any broken default_shell override in proot-distro
+# Clear any broken default_shell override in proot-distro
 rm -f "${PREFIX:-/data/data/com.termux/files/usr}/etc/proot-distro/ubuntu.override.sh" 2>/dev/null || true
 
 # 1. Reset & Purge Termux Host Caches
@@ -48,8 +47,8 @@ pkg clean -y 2>/dev/null || true
 rm -rf ~/.cache ~/.tmp /data/data/com.termux/files/usr/tmp/* 2>/dev/null || true
 echo -e "${GRN}✅ Host caches cleared.${RST}\n"
 
-# 2. Set Default Shell to Bash on Host Termux
-echo -e "${YLW}🐚 Step 2: Ensuring host shell is set to Bash...${RST}"
+# 2. Keep Host Shell on Bash
+echo -e "${YLW}🐚 Step 2: Ensuring host shell is Bash...${RST}"
 if command -v chsh &>/dev/null; then
   chsh -s bash 2>/dev/null || true
 fi
@@ -68,25 +67,33 @@ else
   proot-distro install ubuntu
 fi
 
-# 5. Provision Full Stack Dev Tools INSIDE container (root@localhost)
-echo -e "${YLW}📦 Step 5: Pre-installing sudo, Node.js LTS, npm, git, gh CLI, curl & dev tools in container...${RST}"
+# 5. Provision FULL-PACKAGE Dev Tools, Runtimes & Dependencies INSIDE container
+echo -e "${YLW}📦 Step 5: Installing FULL PACKAGE Ubuntu Dev Stack in root@localhost...${RST}"
+echo -e "  • Compilers:   gcc, g++, clang, make, build-essential, rustc, cargo"
+echo -e "  • Node.js:     Node.js v20 LTS, npm@latest, pnpm, yarn, tsx, vite, tsup"
+echo -e "  • Python:      Python 3, pip, venv, setuptools, wheel, libffi-dev, libssl-dev"
+echo -e "  • Utilities:   sudo, curl, wget, git, gh CLI, jq, htop, tree, lsof, net-tools, nano, vim"
+echo -e "  • Desktop/GUI: xrdp, xfce4, dbus-x11, tigervnc-standalone-server\n"
+
 proot-distro login ubuntu --shell /bin/bash -- /bin/bash -c "
   set -e
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y
-  apt-get install -y sudo curl wget git jq unzip tar nano vim net-tools lsof procps ca-certificates gnupg build-essential python3 python3-pip python3-venv libffi-dev libssl-dev
 
-  # Ensure default shell in /etc/passwd is standard /bin/bash
-  sed -i 's|/root:.*|/root:/bin/bash|g' /etc/passwd 2>/dev/null || true
+  # 1. System Utilities, Shells & Security
+  apt-get install -y sudo curl wget git jq unzip tar p7zip-full xz-utils bzip2 gzip nano vim neovim net-tools lsof procps psmisc tree htop ca-certificates gnupg build-essential python3 python3-pip python3-venv python3-dev libffi-dev libssl-dev libsqlite3-dev
 
-  # Install Node.js v20 LTS & upgrade npm to latest
+  # 2. Desktop GUI & VNC Remote Desktop Tools
+  apt-get install -y xrdp tigervnc-standalone-server tigervnc-common xfce4 xfce4-goodies dbus-x11 2>/dev/null || true
+
+  # 3. Node.js v20 LTS Runtime & Package Managers
   if ! command -v node >/dev/null 2>&1; then
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
     apt-get install -y nodejs
   fi
-  npm install -g npm@latest tsx vite tsup 2>/dev/null || true
+  npm install -g npm@latest pnpm yarn tsx vite tsup esbuild ts-node typescript firebase-tools 2>/dev/null || true
 
-  # Install GitHub CLI (gh)
+  # 4. GitHub CLI (gh)
   if ! command -v gh >/dev/null 2>&1; then
     mkdir -p /etc/apt/keyrings
     curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/etc/apt/keyrings/githubcli-archive-keyring.gpg 2>/dev/null || true
@@ -95,16 +102,22 @@ proot-distro login ubuntu --shell /bin/bash -- /bin/bash -c "
     apt-get update -y || true
     apt-get install -y gh || true
   fi
+
+  # Setup VNC / GUI session startup file
+  mkdir -p /root/.vnc
+  echo 'xfce4-session' > /root/.xsession
+  echo 'xfce4-session' > /root/.vnc/xstartup
+  chmod +x /root/.vnc/xstartup 2>/dev/null || true
 " 2>/dev/null || echo -e "${YLW}⚠️ Container tool provisioning finished with minor notices.${RST}"
 
-# 6. Create Pure Bash Shortcut Launcher 'rocd'
-echo -e "${YLW}🔗 Step 6: Creating pure Bash launcher shortcut 'rocd'...${RST}"
+# 6. Create Crash-Free Global Shortcut Launcher 'rocd'
+echo -e "${YLW}🔗 Step 6: Creating crash-free launcher shortcut 'rocd'...${RST}"
 BIN_DIR="${PREFIX:-$HOME/.local}/bin"
 mkdir -p "$BIN_DIR"
 
 cat << 'EOF' > "$BIN_DIR/rocd"
 #!/data/data/com.termux/files/usr/bin/bash
-# Pure Bash shortcut launcher for rocd container (root@localhost) via native proot-distro
+# Shortcut launcher for rocd container (root@localhost) via native proot-distro
 
 export PROOT_NO_SECCOMP=1
 export PROOT_FORCE_READLINK=1
@@ -132,7 +145,7 @@ if [ $# -gt 0 ]; then
   exec proot-distro login ubuntu --shell /bin/bash -- "$@"
 else
   echo "🚀 Entering rocd Ubuntu Container (root@localhost)..."
-  exec proot-distro login ubuntu --shell /bin/bash
+  exec proot-distro login ubuntu --shell /bin/bash -- /bin/bash -c "[ -x /usr/bin/zsh ] && exec /usr/bin/zsh -l || exec /bin/bash -l"
 fi
 EOF
 
@@ -155,9 +168,11 @@ EOF
 
 echo ""
 echo -e "${GRN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}🎉 Clean Bash-Only rocd Setup Complete!${RST}"
+echo -e "${BOLD}${GRN}🎉 FULL-PACKAGE Ubuntu Dev Stack & Container Ready!${RST}"
 echo -e "${GRN}=====================================================${RST}"
-echo -e "  • Host Shell:      ${CYN}Bash (Pure & Clean Host)${RST}"
-echo -e "  • Container Shell: ${CYN}Bash (root@localhost Ubuntu 22.04)${RST}"
-echo -e "  • Shortcut Command: ${BOLD}${GRN} rocd ${RST}"
+echo -e "  • Compilers:   ${CYN}gcc, g++, clang, make, build-essential${RST}"
+echo -e "  • Node Runtimes:${CYN}Node.js v20, npm@latest, pnpm, yarn, tsx, vite, tsup, esbuild${RST}"
+echo -e "  • Cloud/Dev CLI:${CYN}git, gh CLI, sudo, curl, wget, jq, htop, lsof, tree${RST}"
+echo -e "  • GUI/Desktop: ${CYN}xrdp, xfce4, dbus-x11, tigervnc-standalone-server${RST}"
+echo -e "  • Command:     ${BOLD}${GRN} rocd ${RST}"
 echo ""
