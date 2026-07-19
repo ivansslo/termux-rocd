@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ═════════════════════════════════════════════════════════════════════════════
-#  termux-rocd — Reset Termux, Install Zsh Theme & Provision Container + Zsh
+#  termux-rocd — Termux Reset, Zsh Theme, Node.js & Full Container Dev Tools
 # ═════════════════════════════════════════════════════════════════════════════
 
 set -e
@@ -13,7 +13,7 @@ BOLD='\033[1m'
 RST='\033[0m'
 
 echo -e "${CYN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}     ⚡ Termux Reset, Zsh & udocker Container Engine  ${RST}"
+echo -e "${BOLD}${GRN}     ⚡ Termux Reset, Zsh & Full udocker Provisioner   ${RST}"
 echo -e "${CYN}=====================================================${RST}"
 echo ""
 
@@ -36,7 +36,7 @@ rm -rf ~/.cache ~/.tmp /data/data/com.termux/files/usr/tmp/* 2>/dev/null || true
 echo -e "${GRN}✅ Caches cleared.${RST}\n"
 
 # 2. Update Termux System Packages & Install Base Tools + Zsh
-echo -e "${YLW}📦 Step 2: Updating packages & installing Host Zsh + container tools...${RST}"
+echo -e "${YLW}📦 Step 2: Updating host packages & installing Zsh + container tools...${RST}"
 pkg update -y && pkg upgrade -y
 pkg install -y zsh wget python clang make pkg-config libffi openssl curl git jq proot tar unzip openssh
 
@@ -80,12 +80,32 @@ udocker create --name=roc-container ubuntu:22.04
 echo -e "${YLW}🔧 Step 8: Configuring Android ARM64 execution mode (F8 / P1 PRoot)...${RST}"
 udocker setup --execmode=F8 roc-container 2>/dev/null || udocker setup --execmode=P1 roc-container 2>/dev/null || true
 
-# 7. Provision Zsh & Termux-Zsh Dotfiles inside the Container (root@localhost)
-echo -e "${YLW}🐚 Step 9: Installing Zsh & dotfiles inside container (root@localhost)...${RST}"
+# 7. Provision Full Stack Dev Tools inside container (root@localhost)
+echo -e "${YLW}📦 Step 9: Installing sudo, Node.js LTS, npm, git, gh CLI, curl, wget & dev tools in root@localhost...${RST}"
 udocker run --user=root roc-container /bin/bash -c "
   set -e
+  export DEBIAN_FRONTEND=noninteractive
   apt-get update -y
-  apt-get install -y zsh wget curl git tar
+  apt-get install -y sudo curl wget git jq unzip tar nano vim net-tools lsof procps ca-certificates gnupg build-essential python3 python3-pip python3-venv libffi-dev libssl-dev zsh
+
+  # Install Node.js v20 LTS & upgrade npm to latest
+  if ! command -v node >/dev/null 2>&1; then
+    curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+    apt-get install -y nodejs
+  fi
+  npm install -g npm@latest tsx vite tsup
+
+  # Install GitHub CLI (gh)
+  if ! command -v gh >/dev/null 2>&1; then
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/etc/apt/keyrings/githubcli-archive-keyring.gpg 2>/dev/null || true
+    chmod 644 /etc/apt/keyrings/githubcli-archive-keyring.gpg 2>/dev/null || true
+    echo 'deb [arch=\$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main' | tee /etc/apt/sources.list.d/github-cli.list > /dev/null || true
+    apt-get update -y || true
+    apt-get install -y gh || true
+  fi
+
+  # Setup Zsh & Termux-Zsh dotfiles theme for root
   cd /root
   wget -q -O zsh.tar.xz https://github.com/ivansslo/Termux-Zsh/raw/main/zsh.tar.xz || wget -q -O zsh.tar.xz https://github.com/atamshkai/Termux-Zsh/raw/main/zsh.tar.xz || true
   if [ -f zsh.tar.xz ]; then
@@ -96,16 +116,16 @@ udocker run --user=root roc-container /bin/bash -c "
     fi
   fi
   chsh -s /usr/bin/zsh root 2>/dev/null || true
-" 2>/dev/null || echo -e "${YLW}⚠️ Zsh container setup finished with minor warnings.${RST}"
+" 2>/dev/null || echo -e "${YLW}⚠️ Container tool provisioning finished with minor notices.${RST}"
 
-# 8. Create Shortcut Launcher 'rocd' with Zsh as default container shell
+# 8. Create Shortcut Launcher 'rocd'
 echo -e "${YLW}🔗 Step 10: Creating global launcher shortcut 'rocd'...${RST}"
 BIN_DIR="${PREFIX:-$HOME/.local}/bin"
 mkdir -p "$BIN_DIR"
 
 cat << 'EOF' > "$BIN_DIR/rocd"
 #!/data/data/com.termux/files/usr/bin/bash
-# Shortcut launcher for udocker roc-container with Zsh & Bash support
+# Shortcut launcher for udocker roc-container with full dev environment & Zsh
 
 # Ensure host DNS resolv.conf exists before mounting
 RESOLV="${PREFIX:-/data/data/com.termux/files/usr}/etc/resolv.conf"
@@ -135,7 +155,7 @@ fi
 if [ $# -gt 0 ]; then
   exec udocker run --user=root roc-container "$@"
 else
-  echo "🚀 Entering udocker Termux Container (Ubuntu 22.04 with Zsh)..."
+  echo "🚀 Entering udocker Termux Container (Ubuntu 22.04 with Zsh & Dev Stack)..."
   exec udocker run --user=root roc-container /usr/bin/zsh 2>/dev/null || exec udocker run --user=root roc-container /bin/zsh 2>/dev/null || exec udocker run --user=root roc-container /bin/bash
 fi
 EOF
@@ -144,14 +164,9 @@ chmod +x "$BIN_DIR/rocd"
 
 echo ""
 echo -e "${GRN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}🎉 Termux Reset, Host Zsh & Container Zsh Setup Complete!${RST}"
+echo -e "${BOLD}${GRN}🎉 Full Container Provisioning Complete!${RST}"
 echo -e "${GRN}=====================================================${RST}"
-echo -e "  • Host Shell:      ${CYN}Zsh with custom dotfiles theme${RST}"
-echo -e "  • Container Shell: ${CYN}Zsh (root@localhost in roc-container)${RST}"
-echo -e "  • Shortcut Command:${BOLD}${GRN} rocd ${RST}"
-echo ""
-echo -e "${CYN}💡 How to use your container:${RST}"
-echo -e "  1. Enter container shell:   ${BOLD}rocd${RST}"
-echo -e "  2. Run command inside:      ${BOLD}rocd apt-get update${RST}"
-echo -e "  3. Reset container state:   ${BOLD}rocd reset${RST}"
+echo -e "  • Installed Tools: ${CYN}sudo, Node.js (npm latest), git, gh CLI, curl, wget, tsx, vite, tsup${RST}"
+echo -e "  • Interactive Shell: ${CYN}Zsh (root@localhost with Termux-Zsh theme)${RST}"
+echo -e "  • Shortcut Command:  ${BOLD}${GRN} rocd ${RST}"
 echo ""
