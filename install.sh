@@ -8,6 +8,8 @@ set -e
 export DEBIAN_FRONTEND=noninteractive
 export APT_LISTCHANGES_FRONTEND=none
 export DPKG_OPTIONS="--force-confold --force-confdef"
+export PROOT_NO_SECCOMP=1
+export PROOT_FORCE_READLINK=1
 
 RED='\033[0;31m'
 GRN='\033[0;32m'
@@ -91,8 +93,8 @@ udocker create --name=roc-container debian:bookworm 2>/dev/null || \
 udocker create --name=roc-container arm64v8/debian:bookworm
 
 # 6. Configure PRoot/Fakechroot Execution Mode for Android ARM64
-echo -e "${YLW}🔧 Step 8: Configuring Android ARM64 execution mode (F8 / P1 PRoot)...${RST}"
-udocker setup --execmode=F8 roc-container 2>/dev/null || udocker setup --execmode=P1 roc-container 2>/dev/null || true
+echo -e "${YLW}🔧 Step 8: Configuring Android ARM64 execution mode (P1 / R1 / F8 PRoot)...${RST}"
+udocker setup --execmode=P1 roc-container 2>/dev/null || udocker setup --execmode=R1 roc-container 2>/dev/null || udocker setup --execmode=F8 roc-container 2>/dev/null || true
 
 # 7. Provision Full Stack Dev Tools & Zsh inside container (root@localhost)
 echo -e "${YLW}📦 Step 9: Installing Zsh, sudo, Node.js LTS, npm, git, gh CLI, curl, wget & dev tools in root@localhost...${RST}"
@@ -143,6 +145,9 @@ cat << 'EOF' > "$BIN_DIR/rocd"
 #!/data/data/com.termux/files/usr/bin/bash
 # Shortcut launcher for udocker roc-container with full dev environment & Zsh
 
+export PROOT_NO_SECCOMP=1
+export PROOT_FORCE_READLINK=1
+
 # Ensure host DNS resolv.conf exists before mounting
 RESOLV="${PREFIX:-/data/data/com.termux/files/usr}/etc/resolv.conf"
 if [ ! -f "$RESOLV" ] || [ ! -s "$RESOLV" ]; then
@@ -156,7 +161,7 @@ if [ "$1" = "reset" ]; then
   udocker rm -f roc-container 2>/dev/null || true
   udocker pull --platform=linux/arm64 ubuntu:22.04 2>/dev/null || udocker pull arm64v8/ubuntu:22.04 2>/dev/null || true
   udocker create --name=roc-container ubuntu:22.04 2>/dev/null || udocker create --name=roc-container arm64v8/ubuntu:22.04 2>/dev/null || udocker create --name=roc-container debian:bookworm
-  udocker setup --execmode=F8 roc-container 2>/dev/null || udocker setup --execmode=P1 roc-container 2>/dev/null || true
+  udocker setup --execmode=P1 roc-container 2>/dev/null || udocker setup --execmode=R1 roc-container 2>/dev/null || udocker setup --execmode=F8 roc-container 2>/dev/null || true
   echo "✅ Container roc-container reset to fresh state."
   exit 0
 fi
