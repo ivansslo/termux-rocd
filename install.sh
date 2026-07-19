@@ -80,20 +80,20 @@ udocker create --name=roc-container ubuntu:22.04
 echo -e "${YLW}🔧 Step 8: Configuring Android ARM64 execution mode (F8 / P1 PRoot)...${RST}"
 udocker setup --execmode=F8 roc-container 2>/dev/null || udocker setup --execmode=P1 roc-container 2>/dev/null || true
 
-# 7. Provision Full Stack Dev Tools inside container (root@localhost)
-echo -e "${YLW}📦 Step 9: Installing sudo, Node.js LTS, npm, git, gh CLI, curl, wget & dev tools in root@localhost...${RST}"
+# 7. Provision Full Stack Dev Tools & Zsh inside container (root@localhost)
+echo -e "${YLW}📦 Step 9: Installing Zsh, sudo, Node.js LTS, npm, git, gh CLI, curl, wget & dev tools in root@localhost...${RST}"
 udocker run --user=root roc-container /bin/bash -c "
   set -e
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y
-  apt-get install -y sudo curl wget git jq unzip tar nano vim net-tools lsof procps ca-certificates gnupg build-essential python3 python3-pip python3-venv libffi-dev libssl-dev zsh
+  apt-get install -y zsh sudo curl wget git jq unzip tar nano vim net-tools lsof procps ca-certificates gnupg build-essential python3 python3-pip python3-venv libffi-dev libssl-dev
 
   # Install Node.js v20 LTS & upgrade npm to latest
   if ! command -v node >/dev/null 2>&1; then
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
     apt-get install -y nodejs
   fi
-  npm install -g npm@latest tsx vite tsup
+  npm install -g npm@latest tsx vite tsup 2>/dev/null || true
 
   # Install GitHub CLI (gh)
   if ! command -v gh >/dev/null 2>&1; then
@@ -105,6 +105,9 @@ udocker run --user=root roc-container /bin/bash -c "
     apt-get install -y gh || true
   fi
 
+  # Set Zsh as default shell for root in container
+  chsh -s /usr/bin/zsh root 2>/dev/null || chsh -s /bin/zsh root 2>/dev/null || true
+
   # Setup Zsh & Termux-Zsh dotfiles theme for root
   cd /root
   wget -q -O zsh.tar.xz https://github.com/ivansslo/Termux-Zsh/raw/main/zsh.tar.xz || wget -q -O zsh.tar.xz https://github.com/atamshkai/Termux-Zsh/raw/main/zsh.tar.xz || true
@@ -115,7 +118,6 @@ udocker run --user=root roc-container /bin/bash -c "
       rm -rf /root/zsh /root/zsh.tar.xz
     fi
   fi
-  chsh -s /usr/bin/zsh root 2>/dev/null || true
 " 2>/dev/null || echo -e "${YLW}⚠️ Container tool provisioning finished with minor notices.${RST}"
 
 # 8. Create Shortcut Launcher 'rocd'
@@ -153,10 +155,10 @@ if [ "$1" = "mode" ]; then
 fi
 
 if [ $# -gt 0 ]; then
-  exec udocker run --user=root roc-container "$@"
+  exec udocker run --user=root -w /root roc-container "$@"
 else
   echo "🚀 Entering udocker Termux Container (Ubuntu 22.04 with Zsh & Dev Stack)..."
-  exec udocker run --user=root roc-container /usr/bin/zsh 2>/dev/null || exec udocker run --user=root roc-container /bin/zsh 2>/dev/null || exec udocker run --user=root roc-container /bin/bash
+  exec udocker run --user=root -w /root roc-container zsh 2>/dev/null || exec udocker run --user=root -w /root roc-container /bin/zsh 2>/dev/null || exec udocker run --user=root -w /root roc-container /usr/bin/zsh 2>/dev/null || exec udocker run --user=root -w /root roc-container /bin/bash
 fi
 EOF
 
@@ -166,7 +168,7 @@ echo ""
 echo -e "${GRN}=====================================================${RST}"
 echo -e "${BOLD}${GRN}🎉 Full Container Provisioning Complete!${RST}"
 echo -e "${GRN}=====================================================${RST}"
-echo -e "  • Installed Tools: ${CYN}sudo, Node.js (npm latest), git, gh CLI, curl, wget, tsx, vite, tsup${RST}"
+echo -e "  • Installed Tools: ${CYN}zsh, sudo, Node.js (npm latest), git, gh CLI, curl, wget, tsx, vite, tsup${RST}"
 echo -e "  • Interactive Shell: ${CYN}Zsh (root@localhost with Termux-Zsh theme)${RST}"
 echo -e "  • Shortcut Command:  ${BOLD}${GRN} rocd ${RST}"
 echo ""
