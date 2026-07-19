@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ═════════════════════════════════════════════════════════════════════════════
-#  termux-rocd — FULL-PACKAGE Ubuntu Dev Stack & Container Engine
+#  termux-rocd — Container Engine Provisioner with Direct 'ubuntu' Command
 # ═════════════════════════════════════════════════════════════════════════════
 
 set -e
@@ -19,7 +19,7 @@ BOLD='\033[1m'
 RST='\033[0m'
 
 echo -e "${CYN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}     ⚡ termux-rocd FULL PACKAGE Ubuntu Provisioner   ${RST}"
+echo -e "${BOLD}${GRN}  ⚡ termux-rocd Provisioner (Direct 'ubuntu' Command) ${RST}"
 echo -e "${CYN}=====================================================${RST}"
 echo ""
 
@@ -67,33 +67,22 @@ else
   proot-distro install ubuntu
 fi
 
-# 5. Provision FULL-PACKAGE Dev Tools, Runtimes & Dependencies INSIDE container
-echo -e "${YLW}📦 Step 5: Installing FULL PACKAGE Ubuntu Dev Stack in root@localhost...${RST}"
-echo -e "  • Compilers:   gcc, g++, clang, make, build-essential, rustc, cargo"
-echo -e "  • Node.js:     Node.js v20 LTS, npm@latest, pnpm, yarn, tsx, vite, tsup"
-echo -e "  • Python:      Python 3, pip, venv, setuptools, wheel, libffi-dev, libssl-dev"
-echo -e "  • Utilities:   sudo, curl, wget, git, gh CLI, jq, htop, tree, lsof, net-tools, nano, vim"
-echo -e "  • Desktop/GUI: xrdp, xfce4, dbus-x11, tigervnc-standalone-server\n"
-
+# 5. Provision Full Stack Dev Tools INSIDE container (root@localhost)
+echo -e "${YLW}📦 Step 5: Installing Full Package Ubuntu Dev Tools in root@localhost...${RST}"
 proot-distro login ubuntu --shell /bin/bash -- /bin/bash -c "
   set -e
   export DEBIAN_FRONTEND=noninteractive
   apt-get update -y
-
-  # 1. System Utilities, Shells & Security
   apt-get install -y sudo curl wget git jq unzip tar p7zip-full xz-utils bzip2 gzip nano vim neovim net-tools lsof procps psmisc tree htop ca-certificates gnupg build-essential python3 python3-pip python3-venv python3-dev libffi-dev libssl-dev libsqlite3-dev
 
-  # 2. Desktop GUI & VNC Remote Desktop Tools
-  apt-get install -y xrdp tigervnc-standalone-server tigervnc-common xfce4 xfce4-goodies dbus-x11 2>/dev/null || true
-
-  # 3. Node.js v20 LTS Runtime & Package Managers
+  # Install Node.js v20 LTS & upgrade npm to latest
   if ! command -v node >/dev/null 2>&1; then
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
     apt-get install -y nodejs
   fi
   npm install -g npm@latest pnpm yarn tsx vite tsup esbuild ts-node typescript firebase-tools 2>/dev/null || true
 
-  # 4. GitHub CLI (gh)
+  # Install GitHub CLI (gh)
   if ! command -v gh >/dev/null 2>&1; then
     mkdir -p /etc/apt/keyrings
     curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | dd of=/etc/apt/keyrings/githubcli-archive-keyring.gpg 2>/dev/null || true
@@ -102,22 +91,17 @@ proot-distro login ubuntu --shell /bin/bash -- /bin/bash -c "
     apt-get update -y || true
     apt-get install -y gh || true
   fi
-
-  # Setup VNC / GUI session startup file
-  mkdir -p /root/.vnc
-  echo 'xfce4-session' > /root/.xsession
-  echo 'xfce4-session' > /root/.vnc/xstartup
-  chmod +x /root/.vnc/xstartup 2>/dev/null || true
 " 2>/dev/null || echo -e "${YLW}⚠️ Container tool provisioning finished with minor notices.${RST}"
 
-# 6. Create Crash-Free Global Shortcut Launcher 'rocd'
-echo -e "${YLW}🔗 Step 6: Creating crash-free launcher shortcut 'rocd'...${RST}"
+# 6. Create Global 'ubuntu' Command & 'rocd' Launcher
+echo -e "${YLW}🔗 Step 6: Creating direct global 'ubuntu' and 'rocd' commands...${RST}"
 BIN_DIR="${PREFIX:-$HOME/.local}/bin"
 mkdir -p "$BIN_DIR"
 
-cat << 'EOF' > "$BIN_DIR/rocd"
+# 'ubuntu' Direct Launcher
+cat << 'EOF' > "$BIN_DIR/ubuntu"
 #!/data/data/com.termux/files/usr/bin/bash
-# Shortcut launcher for rocd container (root@localhost) via native proot-distro
+# Direct launcher for Ubuntu container (root@localhost)
 
 export PROOT_NO_SECCOMP=1
 export PROOT_FORCE_READLINK=1
@@ -130,49 +114,49 @@ if [ ! -f "$RESOLV" ] || [ ! -s "$RESOLV" ]; then
   printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > "$RESOLV" 2>/dev/null || true
 fi
 
-# Clear broken default_shell override file on host
 rm -f "${PREFIX:-/data/data/com.termux/files/usr}/etc/proot-distro/ubuntu.override.sh" 2>/dev/null || true
 
 if [ "$1" = "reset" ]; then
-  echo "🧹 Resetting rocd Ubuntu container..."
+  echo "🧹 Resetting Ubuntu container..."
   proot-distro remove ubuntu 2>/dev/null || true
   proot-distro install ubuntu
-  echo "✅ Container reset to fresh state."
+  echo "✅ Ubuntu container reset to fresh state."
   exit 0
 fi
 
 if [ $# -gt 0 ]; then
   exec proot-distro login ubuntu --shell /bin/bash -- "$@"
 else
-  echo "🚀 Entering rocd Ubuntu Container (root@localhost)..."
+  echo "🚀 Entering Ubuntu Container (root@localhost)..."
   exec proot-distro login ubuntu --shell /bin/bash -- /bin/bash -c "[ -x /usr/bin/zsh ] && exec /usr/bin/zsh -l || exec /bin/bash -l"
 fi
 EOF
 
-chmod +x "$BIN_DIR/rocd"
+# Symlink rocd to ubuntu
+cp "$BIN_DIR/ubuntu" "$BIN_DIR/rocd"
+chmod +x "$BIN_DIR/ubuntu" "$BIN_DIR/rocd"
 
-# 7. Configure Termux ~/.bashrc Safely
-echo -e "${YLW}⚙️ Step 7: Configuring Termux ~/.bashrc to auto-start rocd safely...${RST}"
+# 7. Configure Termux ~/.bashrc to Auto-Start 'ubuntu' Container
+echo -e "${YLW}⚙️ Step 7: Configuring Termux ~/.bashrc to auto-start 'ubuntu' safely...${RST}"
 touch "$HOME/.bashrc"
 sed -i '/zsh/d' "$HOME/.bashrc" 2>/dev/null || true
 sed -i '/rocd/d' "$HOME/.bashrc" 2>/dev/null || true
+sed -i '/ubuntu/d' "$HOME/.bashrc" 2>/dev/null || true
 
 cat << 'EOF' >> "$HOME/.bashrc"
 
-# Safe auto-launch rocd container on Termux startup
-if [ -t 0 ] && [ -x "$PREFIX/bin/rocd" ] && [ -z "$ROCD_ACTIVE" ]; then
-  export ROCD_ACTIVE=1
-  rocd || echo "⚠️ Container exited. Retaining Termux host session."
+# Safe auto-launch ubuntu container on Termux startup
+if [ -t 0 ] && [ -x "$PREFIX/bin/ubuntu" ] && [ -z "$UBUNTU_ACTIVE" ]; then
+  export UBUNTU_ACTIVE=1
+  ubuntu || echo "⚠️ Container exited. Retaining Termux host session."
 fi
 EOF
 
 echo ""
 echo -e "${GRN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}🎉 FULL-PACKAGE Ubuntu Dev Stack & Container Ready!${RST}"
+echo -e "${BOLD}${GRN}🎉 Direct 'ubuntu' Command Provisioning Complete!${RST}"
 echo -e "${GRN}=====================================================${RST}"
-echo -e "  • Compilers:   ${CYN}gcc, g++, clang, make, build-essential${RST}"
-echo -e "  • Node Runtimes:${CYN}Node.js v20, npm@latest, pnpm, yarn, tsx, vite, tsup, esbuild${RST}"
-echo -e "  • Cloud/Dev CLI:${CYN}git, gh CLI, sudo, curl, wget, jq, htop, lsof, tree${RST}"
-echo -e "  • GUI/Desktop: ${CYN}xrdp, xfce4, dbus-x11, tigervnc-standalone-server${RST}"
-echo -e "  • Command:     ${BOLD}${GRN} rocd ${RST}"
+echo -e "  • Direct Command:  ${BOLD}${GRN} ubuntu ${RST} (Type 'ubuntu' anytime)"
+echo -e "  • Container Shell: ${CYN}root@localhost (Ubuntu 22.04 LTS)${RST}"
+echo -e "  • Auto-Start:      ${CYN}Launches 'ubuntu' automatically on opening Termux${RST}"
 echo ""
