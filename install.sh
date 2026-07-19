@@ -75,6 +75,9 @@ proot-distro login ubuntu --shell /bin/bash -- /bin/bash -c "
   apt-get update -y
   apt-get install -y zsh sudo curl wget git jq unzip tar nano vim net-tools lsof procps ca-certificates gnupg build-essential python3 python3-pip python3-venv libffi-dev libssl-dev
 
+  # Set default shell in /etc/passwd directly to bypass PAM authentication failures
+  sed -i 's|/root:/bin/bash|/root:/usr/bin/zsh|g' /etc/passwd 2>/dev/null || true
+
   # Install Node.js v20 LTS & upgrade npm to latest
   if ! command -v node >/dev/null 2>&1; then
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
@@ -166,6 +169,6 @@ echo -e "${GRN}=====================================================${RST}"
 echo -e "${BOLD}${GRN}🎉 Crash-Free rocd Container Setup Complete!${RST}"
 echo -e "${GRN}=====================================================${RST}"
 echo -e "  • Host Shell:      ${CYN}Bash (Clean & Lightweight Host)${RST}"
-echo -e "  • Container Shell: ${CYN}Zsh (Auto-detected in root@localhost)${RST}"
+echo -e "  • Container Shell: ${CYN}Zsh (Direct /etc/passwd binding, zero PAM error)${RST}"
 echo -e "  • Shortcut Command: ${BOLD}${GRN} rocd ${RST}"
 echo ""
