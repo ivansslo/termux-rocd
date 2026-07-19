@@ -76,13 +76,19 @@ python3 -m pip install udocker
 echo -e "${YLW}⚙️ Step 5: Initializing udocker engine binaries...${RST}"
 udocker install
 
-# 5. Provision Default Ubuntu Container (roc-container)
-echo -e "${YLW}📦 Step 6: Pulling base container image (Ubuntu 22.04 LTS)...${RST}"
-udocker pull ubuntu:22.04
+# 5. Provision Default Ubuntu Container (roc-container with explicit linux/arm64 platform)
+echo -e "${YLW}📦 Step 6: Pulling base container image (linux/arm64 platform)...${RST}"
+udocker pull --platform=linux/arm64 ubuntu:22.04 2>/dev/null || \
+udocker pull arm64v8/ubuntu:22.04 2>/dev/null || \
+udocker pull ubuntu:22.04 2>/dev/null || \
+udocker pull --platform=linux/arm64 debian:bookworm 2>/dev/null || true
 
 echo -e "${YLW}🚀 Step 7: Creating container instance 'roc-container'...${RST}"
 udocker rm -f roc-container 2>/dev/null || true
-udocker create --name=roc-container ubuntu:22.04
+udocker create --name=roc-container ubuntu:22.04 2>/dev/null || \
+udocker create --name=roc-container arm64v8/ubuntu:22.04 2>/dev/null || \
+udocker create --name=roc-container debian:bookworm 2>/dev/null || \
+udocker create --name=roc-container arm64v8/debian:bookworm
 
 # 6. Configure PRoot/Fakechroot Execution Mode for Android ARM64
 echo -e "${YLW}🔧 Step 8: Configuring Android ARM64 execution mode (F8 / P1 PRoot)...${RST}"
@@ -148,7 +154,8 @@ fi
 if [ "$1" = "reset" ]; then
   echo "🧹 Resetting udocker containers..."
   udocker rm -f roc-container 2>/dev/null || true
-  udocker create --name=roc-container ubuntu:22.04
+  udocker pull --platform=linux/arm64 ubuntu:22.04 2>/dev/null || udocker pull arm64v8/ubuntu:22.04 2>/dev/null || true
+  udocker create --name=roc-container ubuntu:22.04 2>/dev/null || udocker create --name=roc-container arm64v8/ubuntu:22.04 2>/dev/null || udocker create --name=roc-container debian:bookworm
   udocker setup --execmode=F8 roc-container 2>/dev/null || udocker setup --execmode=P1 roc-container 2>/dev/null || true
   echo "✅ Container roc-container reset to fresh state."
   exit 0
