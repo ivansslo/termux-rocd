@@ -17,13 +17,16 @@ echo -e "${BOLD}${GRN}     ⚡ Termux Reset & udocker Container Provisioner  ${R
 echo -e "${CYN}=====================================================${RST}"
 echo ""
 
-# Ensure valid resolv.conf exists on Termux host to fix "invalid host volume path"
+# Ensure valid resolv.conf exists on Termux host (safely removing broken symlinks)
 RESOLV_CONF="${PREFIX:-/data/data/com.termux/files/usr}/etc/resolv.conf"
+rm -f "$RESOLV_CONF" 2>/dev/null || true
 mkdir -p "$(dirname "$RESOLV_CONF")"
-if [ ! -f "$RESOLV_CONF" ] || [ ! -s "$RESOLV_CONF" ]; then
-  echo -e "${YLW}🌐 Creating host DNS config ($RESOLV_CONF)...${RST}"
-  echo -e "nameserver 8.8.8.8\nnameserver 1.1.1.1" > "$RESOLV_CONF"
-fi
+printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > "$RESOLV_CONF" 2>/dev/null || {
+  ETC_DIR="${PREFIX:-/data/data/com.termux/files/usr}/etc"
+  rm -rf "$ETC_DIR" 2>/dev/null || true
+  mkdir -p "$ETC_DIR"
+  printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > "$ETC_DIR/resolv.conf"
+}
 
 # 1. Reset & Purge Termux Caches / Broken Environment
 echo -e "${YLW}🧹 Step 1: Cleaning and resetting Termux caches & broken packages...${RST}"
@@ -69,11 +72,11 @@ cat << 'EOF' > "$BIN_DIR/rocd"
 #!/data/data/com.termux/files/usr/bin/bash
 # Shortcut launcher for udocker roc-container
 
-# Ensure host DNS resolv.conf exists before mounting
 RESOLV="${PREFIX:-/data/data/com.termux/files/usr}/etc/resolv.conf"
 if [ ! -f "$RESOLV" ] || [ ! -s "$RESOLV" ]; then
+  rm -f "$RESOLV" 2>/dev/null || true
   mkdir -p "$(dirname "$RESOLV")"
-  echo -e "nameserver 8.8.8.8\nnameserver 1.1.1.1" > "$RESOLV"
+  printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > "$RESOLV" 2>/dev/null || true
 fi
 
 if [ "$1" = "reset" ]; then
