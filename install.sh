@@ -1,7 +1,7 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ═════════════════════════════════════════════════════════════════════════════
 #  termux-rocd — Bulletproof Termux Container Provisioner via proot-distro
-#  (Host: Bash | Container root@localhost: Zsh + Termux-Zsh Theme)
+#  (Host: Bash | Container root@localhost: Auto Zsh Detection Wrapper)
 # ═════════════════════════════════════════════════════════════════════════════
 
 set -e
@@ -66,7 +66,7 @@ else
 fi
 
 # 5. Provision Full Stack Dev Tools & Zsh INSIDE container (root@localhost)
-echo -e "${YLW}📦 Step 5: Installing Zsh, Termux-Zsh theme, sudo, Node.js LTS, npm, git, gh CLI & dev tools in container...${RST}"
+echo -e "${YLW}📦 Step 5: Pre-installing Zsh, Termux-Zsh theme, sudo, Node.js, npm, git & gh in container...${RST}"
 proot-distro login ubuntu -- /bin/bash -c "
   set -e
   export DEBIAN_FRONTEND=noninteractive
@@ -106,14 +106,14 @@ proot-distro login ubuntu -- /bin/bash -c "
   fi
 " 2>/dev/null || echo -e "${YLW}⚠️ Container tool provisioning finished with minor notices.${RST}"
 
-# 6. Create Global Shortcut Launcher 'rocd' (Launches Zsh inside container)
-echo -e "${YLW}🔗 Step 6: Creating global launcher shortcut 'rocd' with Zsh...${RST}"
+# 6. Create Crash-Free Global Shortcut Launcher 'rocd'
+echo -e "${YLW}🔗 Step 6: Creating crash-free launcher shortcut 'rocd'...${RST}"
 BIN_DIR="${PREFIX:-$HOME/.local}/bin"
 mkdir -p "$BIN_DIR"
 
 cat << 'EOF' > "$BIN_DIR/rocd"
 #!/data/data/com.termux/files/usr/bin/bash
-# Shortcut launcher for rocd container (root@localhost) via native proot-distro (Zsh)
+# Crash-free shortcut launcher for rocd container (root@localhost) via native proot-distro
 
 export PROOT_NO_SECCOMP=1
 export PROOT_FORCE_READLINK=1
@@ -135,10 +135,10 @@ if [ "$1" = "reset" ]; then
 fi
 
 if [ $# -gt 0 ]; then
-  exec proot-distro login ubuntu --shared-tmp -- "$@"
+  exec proot-distro login ubuntu -- "$@"
 else
-  echo "🚀 Entering rocd Ubuntu Container (root@localhost with Zsh)..."
-  exec proot-distro login ubuntu --shared-tmp -- /usr/bin/zsh -l 2>/dev/null || exec proot-distro login ubuntu --shared-tmp -- /bin/bash -l
+  echo "🚀 Entering rocd Ubuntu Container (root@localhost)..."
+  exec proot-distro login ubuntu -- /bin/bash -c "[ -x /usr/bin/zsh ] && exec /usr/bin/zsh -l || exec /bin/bash -l"
 fi
 EOF
 
@@ -161,9 +161,9 @@ EOF
 
 echo ""
 echo -e "${GRN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}🎉 Container Zsh & Auto-Start Provisioning Complete!${RST}"
+echo -e "${BOLD}${GRN}🎉 Crash-Free rocd Container Setup Complete!${RST}"
 echo -e "${GRN}=====================================================${RST}"
 echo -e "  • Host Shell:      ${CYN}Bash (Clean & Lightweight Host)${RST}"
-echo -e "  • Container Shell: ${CYN}Zsh with Termux-Zsh theme (root@localhost)${RST}"
+echo -e "  • Container Shell: ${CYN}Zsh (Auto-detected in root@localhost)${RST}"
 echo -e "  • Shortcut Command: ${BOLD}${GRN} rocd ${RST}"
 echo ""
