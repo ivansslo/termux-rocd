@@ -173,7 +173,7 @@ if [ $# -gt 0 ]; then
   exec udocker run --user=root -w /root roc-container "$@"
 else
   echo "🚀 Entering udocker Termux Container (Ubuntu 22.04 with Zsh & Dev Stack)..."
-  exec udocker run --user=root -w /root roc-container zsh 2>/dev/null || exec udocker run --user=root -w /root roc-container /bin/zsh 2>/dev/null || exec udocker run --user=root -w /root roc-container /usr/bin/zsh 2>/dev/null || exec udocker run --user=root -w /root roc-container /bin/bash
+  exec udocker run --user=root -w /root roc-container /bin/bash -c "[ -x /usr/bin/zsh ] && exec /usr/bin/zsh -l || [ -x /bin/zsh ] && exec /bin/zsh -l || exec /bin/bash -l"
 fi
 EOF
 
