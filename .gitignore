@@ -1,0 +1,7 @@
+*.log
+*.tmp
+.cache/
+__pycache__/
+.venv/
+node_modules/
+EOF
