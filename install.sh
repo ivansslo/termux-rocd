@@ -48,8 +48,12 @@ echo -e "${YLW}🚀 Step 7: Creating container instance 'roc-container'...${RST}
 udocker rm -f roc-container 2>/dev/null || true
 udocker create --name=roc-container ubuntu:22.04
 
-# 6. Create Shortcut Launcher 'rocd'
-echo -e "${YLW}🔗 Step 8: Creating global launcher shortcut 'rocd'...${RST}"
+# 6. Configure PRoot/Fakechroot Execution Mode for Android ARM64
+echo -e "${YLW}🔧 Step 8: Configuring Android ARM64 execution mode (F8 / P1 PRoot)...${RST}"
+udocker setup --execmode=F8 roc-container 2>/dev/null || udocker setup --execmode=P1 roc-container 2>/dev/null || true
+
+# 7. Create Shortcut Launcher 'rocd'
+echo -e "${YLW}🔗 Step 9: Creating global launcher shortcut 'rocd'...${RST}"
 BIN_DIR="${PREFIX:-$HOME/.local}/bin"
 mkdir -p "$BIN_DIR"
 
@@ -61,12 +65,25 @@ if [ "$1" = "reset" ]; then
   echo "🧹 Resetting udocker containers..."
   udocker rm -f roc-container 2>/dev/null || true
   udocker create --name=roc-container ubuntu:22.04
+  udocker setup --execmode=F8 roc-container 2>/dev/null || udocker setup --execmode=P1 roc-container 2>/dev/null || true
   echo "✅ Container roc-container reset to fresh state."
   exit 0
 fi
 
-echo "🚀 Entering udocker Termux Container (Ubuntu 22.04)..."
-udocker run --user=root roc-container /bin/bash "$@"
+if [ "$1" = "mode" ]; then
+  mode="${2:-P1}"
+  echo "⚙️ Setting execution mode to $mode..."
+  udocker setup --execmode="$mode" roc-container
+  echo "✅ Mode updated to $mode."
+  exit 0
+fi
+
+if [ $# -gt 0 ]; then
+  exec udocker run --user=root roc-container "$@"
+else
+  echo "🚀 Entering udocker Termux Container (Ubuntu 22.04)..."
+  exec udocker run --user=root roc-container /bin/bash
+fi
 EOF
 
 chmod +x "$BIN_DIR/rocd"
@@ -77,10 +94,12 @@ echo -e "${BOLD}${GRN}🎉 Termux Container Transformation Complete!${RST}"
 echo -e "${GRN}=====================================================${RST}"
 echo -e "  • udocker Version: $(udocker version | head -n 1 2>/dev/null || echo 'installed')"
 echo -e "  • Container Name:  ${CYN}roc-container${RST} (Ubuntu 22.04)"
+echo -e "  • Exec Mode:       ${CYN}F8 / P1 (PRoot ARM64)${RST}"
 echo -e "  • Shortcut Command:${BOLD}${GRN} rocd ${RST}"
 echo ""
 echo -e "${CYN}💡 How to use your new container:${RST}"
 echo -e "  1. Enter container shell:   ${BOLD}rocd${RST}"
-echo -e "  2. Run command inside:      ${BOLD}rocd echo 'Hello Container!'${RST}"
-echo -e "  3. Reset container state:   ${BOLD}rocd reset${RST}"
+echo -e "  2. Run command inside:      ${BOLD}rocd apt-get update${RST}"
+echo -e "  3. Switch exec mode:        ${BOLD}rocd mode P1${RST} (or F8 / P2)"
+echo -e "  4. Reset container state:   ${BOLD}rocd reset${RST}"
 echo ""
