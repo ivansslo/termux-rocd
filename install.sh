@@ -52,7 +52,7 @@ export PYTHONPATH="$INSTALL_DIR:$PYTHONPATH"
 exec python3 "$INSTALL_DIR/rocd.py" "$@"
 EOF
 
-# 4. Create Global 'ubuntu' Direct Shortcut Command
+# 4. Create Global 'ubuntu' Direct Shortcut Command (Safely handling existing containers)
 cat << 'EOF' > "$BIN_DIR/ubuntu"
 #!/data/data/com.termux/files/usr/bin/bash
 # Direct launcher for Ubuntu container via native rocd engine
@@ -63,15 +63,16 @@ export PROOT_FORCE_READLINK=1
 INSTALL_DIR="${PREFIX:-$HOME/.local}/share/rocd"
 export PYTHONPATH="$INSTALL_DIR:$PYTHONPATH"
 
-# Auto-install Ubuntu if not present
-if ! python3 "$INSTALL_DIR/rocd.py" list 2>/dev/null | grep -q "ubuntu.*installed"; then
-  echo "🚀 First time setup: Installing Ubuntu container..."
-  python3 "$INSTALL_DIR/rocd.py" install ubuntu
+# Auto-install Ubuntu only if not already present
+if ! python3 "$INSTALL_DIR/rocd.py" list 2>/dev/null | grep -i "ubuntu" | grep -q "installed"; then
+  echo "🚀 Installing Ubuntu container image for the first time..."
+  python3 "$INSTALL_DIR/rocd.py" install ubuntu 2>/dev/null || true
 fi
 
-if [ "$1" = "reset" ]; then
-  echo "🧹 Resetting Ubuntu container..."
-  python3 "$INSTALL_DIR/rocd.py" reset ubuntu
+if [ "$1" = "reset" ] || [ "$1" = "--reset" ] || [ "$1" = "reinstall" ]; then
+  echo "🧹 Reinstalling & resetting Ubuntu container rootfs..."
+  python3 "$INSTALL_DIR/rocd.py" reset ubuntu 2>/dev/null || python3 "$INSTALL_DIR/rocd.py" remove ubuntu 2>/dev/null || true
+  python3 "$INSTALL_DIR/rocd.py" install ubuntu 2>/dev/null || true
   echo "✅ Container reset complete."
   exit 0
 fi
@@ -107,4 +108,5 @@ echo -e "${GRN}=====================================================${RST}"
 echo -e "  • Source Engine:   ${CYN}Native ivansslo/rocd (Zero proot-distro dependency)${RST}"
 echo -e "  • Direct Command:  ${BOLD}${GRN} ubuntu ${RST} (Log straight into Ubuntu container)"
 echo -e "  • Engine Command:  ${BOLD}${GRN} rocd ${RST}   (Full rocd CLI engine)"
+echo -e "  • Reinstall/Reset: ${BOLD}${GRN} ubuntu reset ${RST}"
 echo ""
