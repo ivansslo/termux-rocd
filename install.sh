@@ -1,6 +1,6 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # ═════════════════════════════════════════════════════════════════════════════
-#  termux-rocd — Direct Native rocd Engine Installer & 'ubuntu' Command
+#  termux-rocd — Optimized for OPPO CPH1823 (Helio P60 ARM64) & All Devices
 # ═════════════════════════════════════════════════════════════════════════════
 
 set -e
@@ -8,11 +8,13 @@ set -e
 export DEBIAN_FRONTEND=noninteractive
 export PROOT_NO_SECCOMP=1
 export PROOT_FORCE_READLINK=1
+export MALLOC_ARENA_MAX=2
+export ANDROID_API_LEVEL="$(getprop ro.build.version.sdk 2>/dev/null || echo 29)"
 
 RED='\033[0;31m'; GRN='\033[0;32m'; YLW='\033[1;33m'; CYN='\033[0;36m'; BOLD='\033[1m'; RST='\033[0m'
 
 echo -e "${CYN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}  ⚡ termux-rocd Native Engine (ivansslo/rocd Source) ${RST}"
+echo -e "${BOLD}${GRN}  ⚡ termux-rocd (CPH1823 Helio P60 ARM64 Optimized) ${RST}"
 echo -e "${CYN}=====================================================${RST}"
 echo ""
 
@@ -41,10 +43,11 @@ rm -rf "$TMP_CLONE"
 # 3. Create Global 'rocd' Native Command
 cat << 'EOF' > "$BIN_DIR/rocd"
 #!/data/data/com.termux/files/usr/bin/bash
-# Native rocd Container Engine Launcher
+# Native rocd Container Engine Launcher (CPH1823 Cputime Tuned)
 
 export PROOT_NO_SECCOMP=1
 export PROOT_FORCE_READLINK=1
+export MALLOC_ARENA_MAX=2
 
 INSTALL_DIR="${PREFIX:-$HOME/.local}/share/rocd"
 export PYTHONPATH="$INSTALL_DIR:$PYTHONPATH"
@@ -52,13 +55,14 @@ export PYTHONPATH="$INSTALL_DIR:$PYTHONPATH"
 exec python3 "$INSTALL_DIR/rocd.py" "$@"
 EOF
 
-# 4. Create Global 'ubuntu' Direct Shortcut Command (Fixing DNS & Working Dir)
+# 4. Create Global 'ubuntu' Direct Shortcut Command (CPH1823 Optimized)
 cat << 'EOF' > "$BIN_DIR/ubuntu"
 #!/data/data/com.termux/files/usr/bin/bash
-# Direct launcher for Ubuntu container via native rocd engine
+# Direct launcher for Ubuntu container via native rocd engine (CPH1823 Optimized)
 
 export PROOT_NO_SECCOMP=1
 export PROOT_FORCE_READLINK=1
+export MALLOC_ARENA_MAX=2
 
 INSTALL_DIR="${PREFIX:-$HOME/.local}/share/rocd"
 export PYTHONPATH="$INSTALL_DIR:$PYTHONPATH"
@@ -73,7 +77,7 @@ fi
 
 # Auto-install Ubuntu only if not already present
 if ! python3 "$INSTALL_DIR/rocd.py" list 2>/dev/null | grep -i "ubuntu" | grep -q "installed"; then
-  echo "🚀 Installing Ubuntu container image for the first time..."
+  echo "🚀 First time setup: Installing Ubuntu container..."
   python3 "$INSTALL_DIR/rocd.py" install ubuntu 2>/dev/null || true
 fi
 
@@ -111,10 +115,9 @@ EOF
 
 echo ""
 echo -e "${GRN}=====================================================${RST}"
-echo -e "${BOLD}${GRN}🎉 Native rocd Engine & Direct 'ubuntu' Command Ready!${RST}"
+echo -e "${BOLD}${GRN}🎉 CPH1823 Helio P60 Engine & 'ubuntu' Command Ready!${RST}"
 echo -e "${GRN}=====================================================${RST}"
-echo -e "  • Source Engine:   ${CYN}Native ivansslo/rocd (Zero proot-distro dependency)${RST}"
+echo -e "  • Target Device:   ${CYN}OPPO CPH1823 (Helio P60 / Mali-G72 ARM64)${RST}"
+echo -e "  • Engine Memory:   ${CYN}PROOT_NO_SECCOMP=1 & MALLOC_ARENA_MAX=2${RST}"
 echo -e "  • Direct Command:  ${BOLD}${GRN} ubuntu ${RST} (Log straight into Ubuntu container)"
-echo -e "  • Engine Command:  ${BOLD}${GRN} rocd ${RST}   (Full rocd CLI engine)"
-echo -e "  • Reinstall/Reset: ${BOLD}${GRN} ubuntu reset ${RST}"
 echo ""
