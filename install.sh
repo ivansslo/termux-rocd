@@ -16,7 +16,7 @@ echo -e "${BOLD}${GRN}  ⚡ termux-rocd Native Engine (ivansslo/rocd Source) ${R
 echo -e "${CYN}=====================================================${RST}"
 echo ""
 
-# 0. Ensure valid resolv.conf exists on host Termux
+# 0. Ensure valid resolv.conf exists on host Termux & fix any broken symlinks
 RESOLV_CONF="${PREFIX:-/data/data/com.termux/files/usr}/etc/resolv.conf"
 rm -f "$RESOLV_CONF" 2>/dev/null || true
 mkdir -p "$(dirname "$RESOLV_CONF")"
@@ -52,7 +52,7 @@ export PYTHONPATH="$INSTALL_DIR:$PYTHONPATH"
 exec python3 "$INSTALL_DIR/rocd.py" "$@"
 EOF
 
-# 4. Create Global 'ubuntu' Direct Shortcut Command (Safely handling existing containers)
+# 4. Create Global 'ubuntu' Direct Shortcut Command (Fixing DNS & Working Dir)
 cat << 'EOF' > "$BIN_DIR/ubuntu"
 #!/data/data/com.termux/files/usr/bin/bash
 # Direct launcher for Ubuntu container via native rocd engine
@@ -62,6 +62,14 @@ export PROOT_FORCE_READLINK=1
 
 INSTALL_DIR="${PREFIX:-$HOME/.local}/share/rocd"
 export PYTHONPATH="$INSTALL_DIR:$PYTHONPATH"
+
+# Auto-fix host DNS configuration
+RESOLV="${PREFIX:-/data/data/com.termux/files/usr}/etc/resolv.conf"
+if [ ! -f "$RESOLV" ] || [ ! -s "$RESOLV" ]; then
+  rm -f "$RESOLV" 2>/dev/null || true
+  mkdir -p "$(dirname "$RESOLV")"
+  printf "nameserver 8.8.8.8\nnameserver 1.1.1.1\n" > "$RESOLV" 2>/dev/null || true
+fi
 
 # Auto-install Ubuntu only if not already present
 if ! python3 "$INSTALL_DIR/rocd.py" list 2>/dev/null | grep -i "ubuntu" | grep -q "installed"; then
